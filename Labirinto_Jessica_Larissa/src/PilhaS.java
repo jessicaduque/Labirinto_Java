@@ -20,11 +20,21 @@ public class PilhaS<T> implements Pilha<T> {
     }
     @Override
     @SuppressWarnings("unchecked")
-    public T desempilhe() throws FaltaElemento {
+    public void desempilhe() throws FaltaElemento {
         if (topo == -1) {
             throw new FaltaElemento("Pilha vazia! Não é possível desempilhar.");
         }
-        return (T) stack[topo--];
+        //stack[++topo] = v;
+        stack[--topo] = null;
+    }
+    @Override
+    @SuppressWarnings("unchecked")
+    public T getValorTopo() throws FaltaElemento {
+        if (topo == -1) {
+            throw new FaltaElemento("Pilha vazia! Não é possível desempilhar.");
+        }
+        System.out.println(topo);
+        return (T) stack[topo];
     }
 
     @Override
