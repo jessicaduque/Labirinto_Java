@@ -5,7 +5,7 @@ public class Main {
         try {
             Labirinto _labirinto = new Labirinto("labirinto");
             _labirinto.DescobrirRotaLabirinto();
-            _labirinto.ImprimirLabirinto();
+            _labirinto.ImprimirLabirintoTexto();
         }
         catch(Exception e) {
             System.out.println(e.getMessage());
