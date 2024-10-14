@@ -1,48 +1,28 @@
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
 public class Labirinto {
-    private List<List<String>> estruturaLabirinto;
-    private int largura, altura;
+    private List<List<String>> estruturaLabirinto; // Matriz de strings para guardar a estrutura original do labirinto
+    private List<List<String>> estruturaLabirintoComRota;
+    private int largura, altura; // Largura e altura original do labirinto
 
+    // Construtor que lê um arquivo csv para determinar a estrutura, altura e largura do labirinto
     public Labirinto(String nomeCSV) {
         this.estruturaLabirinto = GetEstruturaLabirinto(nomeCSV);
-
-        if (this.estruturaLabirinto.isEmpty()) {
-            System.out.println("O arquivo CSV está vazio ou não pôde ser lido.");
-            return;
-        }
-
-        this.largura = this.estruturaLabirinto.get(0).size();
+        this.estruturaLabirintoComRota = this.estruturaLabirinto;
+        this.largura = this.estruturaLabirinto.getFirst().size();
         this.altura = this.estruturaLabirinto.size();
-
-        try {
-            boolean caminhoEncontrado = DescobrirRotaLabirinto();
-            if (!caminhoEncontrado) {
-                System.out.println("Nenhum caminho para a saída encontrado.");
-            }
-        } catch (FaltaEspaco e) {
-            throw new RuntimeException(e);
-        } catch (FaltaElemento e) {
-            throw new RuntimeException(e);
-        }
-        ImprimirLabirinto();
     }
 
+    // Função para conseguir ler a estrutura do labirinto a partir do csv
     private List<List<String>> GetEstruturaLabirinto(String nomeCSV) {
         List<List<String>> records = new ArrayList<>();
-        URL csvPath = getClass().getResource("/" + nomeCSV + ".csv");
-        if (csvPath == null) {
-            System.out.println("O arquivo CSV especificado não pôde ser encontrado.");
-            return records;
-        }
 
-        File csvFile = new File(csvPath.getFile());
-        try (Scanner scanner = new Scanner(csvFile)) {
+        try (Scanner scanner = new Scanner(new File(nomeCSV + ".csv"))) {
             while (scanner.hasNextLine()) {
                 List<String> linha = GetLinhaLabirinto(scanner.nextLine());
                 records.add(linha);
@@ -53,6 +33,7 @@ public class Labirinto {
         return records;
     }
 
+    // Função que retorna cada linha lida no csv do labirinto para formar sua estrutura
     private List<String> GetLinhaLabirinto(String line) {
         List<String> values = new ArrayList<>();
         try (Scanner rowScanner = new Scanner(line)) {
@@ -64,103 +45,109 @@ public class Labirinto {
         return values;
     }
 
-    // Função principal para descobrir a rota
-    private boolean DescobrirRotaLabirinto() throws FaltaEspaco, FaltaElemento {
-        PilhaS<int[]> pilha = new PilhaS<>(largura * altura);
+    // Função que descobre a rota para a saída do labirinto
+    public void DescobrirRotaLabirinto() throws FaltaEspaco, FaltaElemento, SemSaida {
+        // Variáveis
+        PilhaS<int[]> pilhaPassosAvancados = new PilhaS<>(largura * altura);
         int[] entrada = {0, 0}; // Ponto de entrada
-        pilha.empilhe(entrada);
+        int[] posicaoAtual = entrada;
 
-        while (!pilha.vazia()) {
-            // Para testes
+        pilhaPassosAvancados.empilhe(entrada);
+        estruturaLabirintoComRota.get(posicaoAtual[1]).set(posicaoAtual[0], "X");
 
-//            ImprimirLabirinto();
-//            System.out.println("___");
+        while (true) {
+            int posX = posicaoAtual[0];
+            int posY = posicaoAtual[1];
 
-            int[] posicaoAtual = pilha.getValorTopo();
-            int x = posicaoAtual[0];
-            int y = posicaoAtual[1];
-
-            // Verifica se a posição atual é um caminho (1)
-            if (estruturaLabirinto.get(y).get(x).equals("1")) {
-                // Verifica se é a saída (última célula)
-                if (x == largura - 1 && y == altura - 1) {
-                    estruturaLabirinto.get(y).set(x, "X"); // Marca a saída
-                    return true; // Caminho encontrado
-                }
-
-                // Marca a célula como parte do caminho
-                estruturaLabirinto.get(y).set(x, "X");
-
-                // Empilha os próximos passos, com prioridade para "baixo" e "direita"
-                if (EmpilharProximoPasso(pilha, x, y)) {
-                    continue; // Se empilhou algum passo, continua para a próxima iteração
-                } else {
-                    // Se não há mais passos, desmarcar se não estamos perto da saída
-                    if (!EhCaminhoFinal(x, y)) {
-                        estruturaLabirinto.get(y).set(x, "0");
-                    }
+            int[] proximoPasso = GetProximoPasso(posX, posY);
+            if(proximoPasso != null){ // Checar próximo passo se existe, e se existe, mover para o próximo passo
+                posicaoAtual = proximoPasso;
+                pilhaPassosAvancados.empilhe(posicaoAtual);
+                estruturaLabirintoComRota.get(posicaoAtual[1]).set(posicaoAtual[0], "X");
+                //ImprimirLabirinto();
+                if(EstaNaSaida(posicaoAtual[0],posicaoAtual[1])){ // Checar se está na saída, e se sim, retornar para terminar a função
+                    return;
                 }
             }
-            else{
-                System.out.println("a");
+            else{ //Se não existe, voltar um passo e tentar achar outra rota
+                estruturaLabirintoComRota.get(posicaoAtual[1]).set(posicaoAtual[0], "0");
+                pilhaPassosAvancados.desempilhe();
+                if(!pilhaPassosAvancados.vazia()){
+                    posicaoAtual = pilhaPassosAvancados.getValorTopo();
+                    //ImprimirLabirinto();
+                }
+                else{
+                    throw new SemSaida("Sem saída");
+                }
             }
         }
-        return false; // Nenhum caminho para a saída encontrado
     }
 
-    private boolean EhCaminhoFinal(int x, int y) {
-        // Verifica se estamos no caminho final ou na saída
+    // Função que retorna qual é o próximo passo a ser tomado no labirinto. Se nenhum é reconhecido, um valor nulo é retornado
+    private int[] GetProximoPasso(int posX, int posY) {
+        // Com prioridade para as laterais em vez das diagonais, procura o próximo passo no labirinto
+        int xTemp = posX;
+        int yTemp = posY;
+
+        // Checa a esquerda e direita
+        for (int adicionalX = -1; adicionalX < 2; adicionalX += 2) {
+            xTemp = posX + adicionalX;
+            if (xTemp >= 0 && xTemp < this.largura) {
+                if (ExisteProximoPasso(xTemp, yTemp)) {
+                    return new int[]{xTemp, yTemp};
+                }
+            }
+        }
+        xTemp = posX;
+        // Checa em baixo e cima
+        for (int adicionalY = -1; adicionalY < 2; adicionalY += 2) {
+            yTemp = posY + adicionalY;
+            if (yTemp >= 0 && yTemp < this.altura) {
+                if (ExisteProximoPasso(xTemp, yTemp)) {
+                    return new int[]{xTemp, yTemp};
+                }
+            }
+        }
+        yTemp = posY;
+        // Checa nas diagonais da cima direita e da baixa esquerda
+        for (int adicional = -1; adicional < 2; adicional += 2) {
+            xTemp = posX + adicional;
+            yTemp = posY + adicional;
+            if (xTemp >= 0 && xTemp < this.largura && yTemp >= 0 && yTemp < this.altura) {
+                if (ExisteProximoPasso(xTemp, yTemp)) {
+                    return new int[]{xTemp, yTemp};
+                }
+            }
+        }
+        // Checa nas diagonais da cima esquerda e da baixa direita
+        for (int adicional = -1; adicional < 2; adicional += 2) {
+            xTemp = posX - adicional;
+            yTemp = posY + adicional;
+            if (xTemp >= 0 && xTemp < this.largura && yTemp >= 0 && yTemp < this.altura) {
+                if (ExisteProximoPasso(xTemp, yTemp)) {
+                    return new int[]{xTemp, yTemp};
+                }
+            }
+        }
+
+        // Se nada foi retornado, é porque nenhum passo foi encontrado
+        return null;
+    }
+
+    // Função para checar que o próximo passo sendo checado está marcado como um caminho no labirinto
+    private boolean ExisteProximoPasso(int x, int y){
+        return estruturaLabirinto.get(y).get(x).equals("1");
+    }
+
+    // Função para verificar se a posição atual é a saída do labirinto
+    private boolean EstaNaSaida(int x, int y) {
         return x == largura - 1 || y == altura - 1 || x == 0 || y == 0;
     }
 
-    private boolean EmpilharProximoPasso(PilhaS<int[]> pilha, int x, int y) throws FaltaEspaco {
-        boolean passoAdicionado = false;
-
-        // Empilha com prioridade em Baixo e Direita
-        if (ExisteProximoPasso(x, y + 1)) { // Baixo
-            pilha.empilhe(new int[]{x, y + 1});
-            passoAdicionado = true;
-        }
-        if (ExisteProximoPasso(x + 1, y)) { // Direita
-            pilha.empilhe(new int[]{x + 1, y});
-            passoAdicionado = true;
-        }
-        if (ExisteProximoPasso(x, y - 1)) { // Cima
-            pilha.empilhe(new int[]{x, y - 1});
-            passoAdicionado = true;
-        }
-        if (ExisteProximoPasso(x - 1, y)) { // Esquerda
-            pilha.empilhe(new int[]{x - 1, y});
-            passoAdicionado = true;
-        }
-        if (ExisteProximoPasso(x + 1, y + 1)) { // Cima direita
-            pilha.empilhe(new int[]{x + 1, y + 1});
-            passoAdicionado = true;
-        }
-        if (ExisteProximoPasso(x + 1, y - 1)) { // Baixo direita
-            pilha.empilhe(new int[]{x + 1, y - 1});
-            passoAdicionado = true;
-        }
-        if (ExisteProximoPasso(x - 1, y + 1)) { // Cima esquerda
-            pilha.empilhe(new int[]{x - 1, y + 1});
-            passoAdicionado = true;
-        }
-        if (ExisteProximoPasso(x - 1, y - 1)) { // Baixo esquerda
-            pilha.empilhe(new int[]{x - 1, y - 1});
-            passoAdicionado = true;
-        }
-
-        return passoAdicionado; // Retorna se algum passo foi empilhado
-    }
-
-    private boolean ExisteProximoPasso(int x, int y) {
-        // Verifica se a posição está dentro dos limites e é um caminho (1)
-        return (x >= 0 && x < largura && y >= 0 && y < altura && estruturaLabirinto.get(y).get(x).equals("1"));
-    }
-
-    private void ImprimirLabirinto() {
-        for (List<String> linha : estruturaLabirinto) {
+    public void ImprimirLabirinto() {
+        for (List<String> linha : estruturaLabirintoComRota) {
             System.out.println(String.join("\t", linha));
         }
+        System.out.println();
     }
 }

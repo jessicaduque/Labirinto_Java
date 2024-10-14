@@ -1,6 +1,6 @@
-public class FaltaElemento  extends Exception{
+public class FaltaElemento extends Exception{
 
     public FaltaElemento(String message) {
-        super(message); // Passa a mensagem para a superclasse
+        super("Uma pilha sendo utilizada está vazia."); // Passa a mensagem para a superclasse
     }
 }

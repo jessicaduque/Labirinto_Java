@@ -2,6 +2,13 @@
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 public class Main {
     public static void main(String[] args) {
-        Labirinto _labirinto = new Labirinto("labirinto");
+        try {
+            Labirinto _labirinto = new Labirinto("labirinto");
+            _labirinto.DescobrirRotaLabirinto();
+            _labirinto.ImprimirLabirinto();
+        }
+        catch(Exception e) {
+            System.out.println(e.getMessage());
+        }
     }
 }

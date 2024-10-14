@@ -1,3 +1,4 @@
+import java.util.Arrays;
 import java.util.function.Consumer;
 public class PilhaS<T> implements Pilha<T> {
     private Object[] stack;
@@ -24,8 +25,8 @@ public class PilhaS<T> implements Pilha<T> {
         if (topo == -1) {
             throw new FaltaElemento("Pilha vazia! Não é possível desempilhar.");
         }
-        //stack[++topo] = v;
-        stack[--topo] = null;
+        stack[topo] = null;
+        topo--;
     }
     @Override
     @SuppressWarnings("unchecked")
@@ -33,7 +34,7 @@ public class PilhaS<T> implements Pilha<T> {
         if (topo == -1) {
             throw new FaltaElemento("Pilha vazia! Não é possível desempilhar.");
         }
-        System.out.println(topo);
+
         return (T) stack[topo];
     }
 

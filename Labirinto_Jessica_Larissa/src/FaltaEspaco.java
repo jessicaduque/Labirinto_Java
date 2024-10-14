@@ -1,5 +1,5 @@
-public class FaltaEspaco  extends Exception{
+public class FaltaEspaco extends Exception{
     public FaltaEspaco(String message) {
-        super(message); // Passa a mensagem para a superclasse
+        super("Uma pilha sendo utilizada está cheia, então não é possível empilhar mais."); // Passa a mensagem para a superclasse
     }
 }
