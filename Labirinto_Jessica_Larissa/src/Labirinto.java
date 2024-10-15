@@ -4,11 +4,14 @@ import java.util.ArrayList;
 import java.util.InputMismatchException;
 import java.util.List;
 import java.util.Scanner;
-
+import javax.swing.*;
+import java.awt.*;
 public class Labirinto {
-    private final List<List<String>> estruturaLabirinto; // Matriz de strings para guardar a estrutura original do labirinto
-    private List<List<String>> estruturaLabirintoComRota;
+    private final List<List<Integer>> estruturaLabirinto; // Matriz de strings para guardar a estrutura original do labirinto
+    private List<List<Integer>> estruturaLabirintoComRota;
     private final int largura, altura; // Largura e altura original do labirinto
+    private JPanel[][] celulas;
+    private final JFrame framePrincipal = new JFrame();
 
     // Construtor que lê um arquivo csv para determinar a estrutura, altura e largura do labirinto
     public Labirinto(String nomeCSV) {
@@ -16,15 +19,17 @@ public class Labirinto {
         this.estruturaLabirintoComRota = this.estruturaLabirinto;
         this.largura = this.estruturaLabirinto.getFirst().size();
         this.altura = this.estruturaLabirinto.size();
+        this.celulas = new JPanel[this.altura][this.largura];
+        initUI();
     }
 
     // Função para conseguir ler a estrutura do labirinto a partir do csv
-    private List<List<String>> GetEstruturaLabirinto(String nomeCSV) {
-        List<List<String>> records = new ArrayList<>();
+    private List<List<Integer>> GetEstruturaLabirinto(String nomeCSV) {
+        List<List<Integer>> records = new ArrayList<>();
 
         try (Scanner scanner = new Scanner(new File(nomeCSV + ".csv"))) {
             while (scanner.hasNextLine()) {
-                List<String> linha = this.GetLinhaLabirinto(scanner.nextLine());
+                List<Integer> linha = this.GetLinhaLabirinto(scanner.nextLine());
                 records.add(linha);
             }
         } catch (FileNotFoundException e) {
@@ -34,15 +39,41 @@ public class Labirinto {
     }
 
     // Função que retorna cada linha lida no csv do labirinto para formar sua estrutura
-    private List<String> GetLinhaLabirinto(String line) {
-        List<String> values = new ArrayList<>();
+    private List<Integer> GetLinhaLabirinto(String line) {
+        List<Integer> values = new ArrayList<>();
         try (Scanner rowScanner = new Scanner(line)) {
             rowScanner.useDelimiter(",");  // Alterar para vírgula como delimitador
-            while (rowScanner.hasNext()) {
-                values.add(rowScanner.next());
+            while (rowScanner.hasNextInt()) {
+                values.add(rowScanner.nextInt());
             }
         }
         return values;
+    }
+
+    // Função que inicia o UI do labirinto
+    private void initUI() {
+        // Configuração da janela e layout
+        framePrincipal.setTitle("Labirinto com Animação");
+        framePrincipal.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        framePrincipal.setLayout(new GridLayout(this.altura, this.largura));
+
+        // Inicializa o labirinto gráfico
+        for (int i = 0; i < this.altura; i++) {
+            for (int j = 0; j < this.largura; j++) {
+                celulas[i][j] = new JPanel();
+                if (estruturaLabirinto.get(i).get(j) == 0) {
+                    celulas[i][j].setBackground(Color.BLACK); // Paredes são pretas
+                } else {
+                    celulas[i][j].setBackground(Color.WHITE); // Passagens são brancas
+                }
+                framePrincipal.add(celulas[i][j]);
+            }
+        }
+
+        framePrincipal.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        framePrincipal.setSize(400, 400);
+        framePrincipal.setLocationRelativeTo(null);
+        framePrincipal.setVisible(true);
     }
 
     // Função que descobre a rota para a saída do labirinto
@@ -54,6 +85,7 @@ public class Labirinto {
         String[] entradaString = scanner.nextLine().split(",");;
         int[] posEntrada = new int[2];
         int[] posicaoAtual;
+
         try { // Checar se a entrada informada pelo usuário está no padrão esperado correto
             for (int i = 0; i < entradaString.length; i++) {
                 posEntrada[i] = Integer.valueOf(entradaString[i]);
@@ -64,7 +96,7 @@ public class Labirinto {
             throw new InputMismatchException("Formato de posição da entrada informada diferente do esperado.");
         }
         try{ // Checar se a entrada informada pelo usuário é de fato marcada como um caminho na estrutura do labirinto
-            if(!this.estruturaLabirintoComRota.get(posicaoAtual[1]).get(posicaoAtual[0]).equals("1")){
+            if(this.estruturaLabirintoComRota.get(posicaoAtual[1]).get(posicaoAtual[0]) != 1){
                 throw new Exception();
             }
         }
@@ -72,8 +104,8 @@ public class Labirinto {
             throw new RuntimeException("Entrada informada não corresponde à um caminho na estrutura do labirinto.");
         }
 
+        celulas[posEntrada[1]][posEntrada[0]].setBackground(Color.RED);
         pilhaPassosAvancados.empilhe(posEntrada);
-        this.estruturaLabirintoComRota.get(posicaoAtual[1]).set(posicaoAtual[0], "X");
 
         while (true) {
             int posX = posicaoAtual[0];
@@ -81,20 +113,19 @@ public class Labirinto {
 
             int[] proximoPasso = this.GetProximoPasso(posX, posY);
             if(proximoPasso != null){ // Checar próximo passo se existe, e se existe, mover para o próximo passo
+                celulas[posY][posX].setBackground(Color.WHITE);
                 posicaoAtual = proximoPasso;
                 pilhaPassosAvancados.empilhe(posicaoAtual);
-                this.estruturaLabirintoComRota.get(posicaoAtual[1]).set(posicaoAtual[0], "X");
-                //ImprimirLabirinto(); // Para testes!
+                celulas[posicaoAtual[1]][posicaoAtual[0]].setBackground(Color.RED);
                 if(this.EstaNaSaida(posicaoAtual[0],posicaoAtual[1])){ // Checar se está na saída, e se sim, retornar para terminar a função
                     return;
                 }
             }
             else{ //Se não existe, voltar um passo e tentar achar outra rota
-                this.estruturaLabirintoComRota.get(posicaoAtual[1]).set(posicaoAtual[0], "0");
+                celulas[posicaoAtual[1]][posicaoAtual[0]].setBackground(Color.BLACK);
                 pilhaPassosAvancados.desempilhe();
                 if(!pilhaPassosAvancados.vazia()){
                     posicaoAtual = pilhaPassosAvancados.getValorTopo();
-                    //ImprimirLabirinto(); // Para testes!
                 }
                 else{
                     throw new SemSaida("Sem saída");
@@ -156,7 +187,7 @@ public class Labirinto {
 
     // Função para checar que o próximo passo sendo checado está marcado como um caminho no labirinto
     private boolean ExisteProximoPasso(int x, int y){
-        return this.estruturaLabirinto.get(y).get(x).equals("1");
+        return this.estruturaLabirinto.get(y).get(x) == 1;
     }
 
     // Função para verificar se a posição atual é a saída do labirinto
@@ -165,10 +196,10 @@ public class Labirinto {
     }
 
     // Função para imprimir a estrutura do labirinto de forma bonita em texto
-    public void ImprimirLabirintoTexto() {
-        for (List<String> linha : this.estruturaLabirintoComRota) {
-            System.out.println(String.join("\t", linha));
-        }
-        System.out.println();
-    }
+//    public void ImprimirLabirintoTexto() {
+//        for (List<String> linha : this.estruturaLabirintoComRota) {
+//            System.out.println(String.join("\t", linha));
+//        }
+//        System.out.println();
+//    }
 }
