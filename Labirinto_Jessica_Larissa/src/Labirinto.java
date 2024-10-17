@@ -10,8 +10,11 @@ public class Labirinto {
     private final List<List<Integer>> estruturaLabirinto; // Matriz de strings para guardar a estrutura original do labirinto
     private List<List<Integer>> estruturaLabirintoComRota;
     private final int largura, altura; // Largura e altura original do labirinto
+    PilhaS<int[]> pilhaPassosAvancados;
     private JPanel[][] celulas;
     private final JFrame framePrincipal = new JFrame();
+    int[] posEntrada = new int[2], posicaoAtual = new int[2];
+    Timer timer;
 
     // Construtor que lê um arquivo csv para determinar a estrutura, altura e largura do labirinto
     public Labirinto(String nomeCSV) {
@@ -20,7 +23,14 @@ public class Labirinto {
         this.largura = this.estruturaLabirinto.getFirst().size();
         this.altura = this.estruturaLabirinto.size();
         this.celulas = new JPanel[this.altura][this.largura];
-        initUI();
+        this.pilhaPassosAvancados = new PilhaS<>(this.largura * this.altura);
+        try {
+            InitUI();
+            IniciarParametros();
+            IniciarAnimacao();
+        } catch(Exception e){
+            System.out.println(e.getMessage());
+        }
     }
 
     // Função para conseguir ler a estrutura do labirinto a partir do csv
@@ -51,7 +61,7 @@ public class Labirinto {
     }
 
     // Função que inicia o UI do labirinto
-    private void initUI() {
+    private void InitUI() {
         // Configuração da janela e layout
         framePrincipal.setTitle("Labirinto com Animação");
         framePrincipal.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -73,19 +83,26 @@ public class Labirinto {
         framePrincipal.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         framePrincipal.setSize(400, 400);
         framePrincipal.setLocationRelativeTo(null);
-        framePrincipal.setVisible(true);
     }
 
-    // Função que descobre a rota para a saída do labirinto
-    public void DescobrirRotaLabirinto() throws FaltaEspaco, FaltaElemento, SemSaida, InputMismatchException, NumberFormatException {
+    // Função que inicia a animação do UI do labirinto
+    private void IniciarAnimacao() {
+        timer = new Timer(1000, e -> {
+            try {
+                DescobrirRotaLabirinto();
+            } catch(Exception exception) {
+                System.out.println(exception.getMessage());
+            }
+        });
+        timer.start();
+    }
+
+    private void IniciarParametros() throws FaltaEspaco
+    {
         // Variáveis
-        PilhaS<int[]> pilhaPassosAvancados = new PilhaS<>(this.largura * this.altura);
         Scanner scanner = new Scanner(System.in);
         System.out.println("Qual a posição de entrada? (Ex: 0,0)");
         String[] entradaString = scanner.nextLine().split(",");;
-        int[] posEntrada = new int[2];
-        int[] posicaoAtual;
-
         try { // Checar se a entrada informada pelo usuário está no padrão esperado correto
             for (int i = 0; i < entradaString.length; i++) {
                 posEntrada[i] = Integer.valueOf(entradaString[i]);
@@ -105,33 +122,42 @@ public class Labirinto {
         }
 
         celulas[posEntrada[1]][posEntrada[0]].setBackground(Color.RED);
+        this.estruturaLabirintoComRota.get(posEntrada[1]).set(posEntrada[0], 2);
+        framePrincipal.setVisible(true);
         pilhaPassosAvancados.empilhe(posEntrada);
+    }
 
-        while (true) {
-            int posX = posicaoAtual[0];
-            int posY = posicaoAtual[1];
+    // Função que descobre a rota para a saída do labirinto
+    public void DescobrirRotaLabirinto() throws FaltaEspaco, FaltaElemento, SemSaida, InputMismatchException, NumberFormatException
+    {
+        int posX = posicaoAtual[0];
+        int posY = posicaoAtual[1];
 
-            int[] proximoPasso = this.GetProximoPasso(posX, posY);
-            if(proximoPasso != null){ // Checar próximo passo se existe, e se existe, mover para o próximo passo
-                celulas[posY][posX].setBackground(Color.WHITE);
-                posicaoAtual = proximoPasso;
-                pilhaPassosAvancados.empilhe(posicaoAtual);
-                celulas[posicaoAtual[1]][posicaoAtual[0]].setBackground(Color.RED);
-                if(this.EstaNaSaida(posicaoAtual[0],posicaoAtual[1])){ // Checar se está na saída, e se sim, retornar para terminar a função
-                    return;
-                }
-            }
-            else{ //Se não existe, voltar um passo e tentar achar outra rota
-                celulas[posicaoAtual[1]][posicaoAtual[0]].setBackground(Color.BLACK);
-                pilhaPassosAvancados.desempilhe();
-                if(!pilhaPassosAvancados.vazia()){
-                    posicaoAtual = pilhaPassosAvancados.getValorTopo();
-                }
-                else{
-                    throw new SemSaida("Sem saída");
-                }
+        int[] proximoPasso = this.GetProximoPasso(posX, posY);
+        if(proximoPasso != null){ // Checar próximo passo se existe, e se existe, mover para o próximo passo
+            celulas[posY][posX].setBackground(Color.WHITE);
+            posicaoAtual = proximoPasso;
+            pilhaPassosAvancados.empilhe(posicaoAtual);
+            this.estruturaLabirintoComRota.get(posicaoAtual[1]).set(posicaoAtual[0], 2);
+            celulas[posicaoAtual[1]][posicaoAtual[0]].setBackground(Color.RED);
+            if(this.EstaNaSaida(posicaoAtual[0],posicaoAtual[1])){ // Checar se está na saída, e se sim, retornar para terminar a função
+                timer.stop();
             }
         }
+        else{ //Se não existe, voltar um passo e tentar achar outra rota
+            this.estruturaLabirintoComRota.get(posicaoAtual[1]).set(posicaoAtual[0], 0);
+            celulas[posicaoAtual[1]][posicaoAtual[0]].setBackground(Color.WHITE);
+            pilhaPassosAvancados.desempilhe();
+            if(!pilhaPassosAvancados.vazia()){
+                posicaoAtual = pilhaPassosAvancados.getValorTopo();
+                celulas[posicaoAtual[1]][posicaoAtual[0]].setBackground(Color.RED);
+            }
+            else{
+                timer.stop();
+                throw new SemSaida("");
+            }
+        }
+
     }
 
     // Função que retorna qual é o próximo passo a ser tomado no labirinto. Se nenhum é reconhecido, um valor nulo é retornado
@@ -194,12 +220,4 @@ public class Labirinto {
     private boolean EstaNaSaida(int x, int y) {
         return x == this.largura - 1 || y == this.altura - 1 || x == 0 || y == 0;
     }
-
-    // Função para imprimir a estrutura do labirinto de forma bonita em texto
-//    public void ImprimirLabirintoTexto() {
-//        for (List<String> linha : this.estruturaLabirintoComRota) {
-//            System.out.println(String.join("\t", linha));
-//        }
-//        System.out.println();
-//    }
 }
